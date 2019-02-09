@@ -44,7 +44,7 @@ Add the `WebsocketCamera` to any camera object that you wish to be accessible vi
 
 Press play.
 
-###WebsocketPlayerController Prefab
+### WebsocketPlayerController Prefab
 
 #### HTTP Root
 By default, the `WebPlayerTemplates` directory is used as the web server root. This Unity designated folder ignores HTML/JS specifically for web use.
