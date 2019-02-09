@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>WebsocketPlayer</title>
+	</head>
+	<body style="border: none; padding: 0; margin: 0; background-color: black; font-family: sans-serif; overflow: hidden;">
+		<div id="ControlsContainerLeft" style="position: absolute; left: 0px; padding: 1.5em; color: red;">
+			<span id="ConnectionStatus">Disconnected</span>
+		</div>
+		<div id="ControlsContainerRight" style="position: absolute; right: 0px; padding: 1.5em;">
+			<select name="WebsocketSelect" id="WebsocketSelect">
+				<option value="">Choose Camera</option>
+			</select>
+		</div>
+		<div id="FrameDisplayContainer" style="width: 100%; height: 100%;">
+			<canvas id="FrameDisplay" style="height: 100%;"></canvas>
+		</div>
+
+		<script>
+			var url = new URL(window.location.href);
+			var url = url.hostname + ":" + url.port;
+			var urlHttp = "http://" + url;
+			var urlWs = "ws://" + url;
+
+			var websocketSelect = document.getElementById("WebsocketSelect");
+			var FrameDisplayCanvas = document.getElementById("FrameDisplay");
+
+			var ws;
+			
+			// Setup canvas
+			var FrameDisplayContext = FrameDisplayCanvas.getContext("2d");
+
+			// Create JS element for GET websocketlist with callback function
+			var websocketListScript = document.createElement("script");
+			websocketListScript.src = urlHttp + "/api/websocketlist";
+			websocketListScript.onload = websocketListCallback;
+
+			document.head.appendChild(websocketListScript);
+
+			function websocketListCallback() {
+				// array returned from websocketListScript via GET
+				cameraList.forEach(service => {
+					var option = document.createElement("option");
+					option.value = service;
+					option.text = service.replace(/[/_-]/g, " ");
+
+					websocketSelect.add(option);
+				});
+			}
+
+			websocketSelect.onchange = function() {
+				// Close any opened websockets
+				closeSocket();
+
+				connectSocketServer(urlWs + websocketSelect.value);
+			};
+
+			function connectSocketServer(url) {
+				ws = new WebSocket(url);
+
+				// Define what type of binary data is to be expected
+				ws.binaryType = "arraybuffer";
+
+				ws.onmessage = function(evt) {
+					if (evt.data) {
+						drawFrame(evt.data);
+					}
+				}
+
+				ws.onopen = function() {
+					document.getElementById("ConnectionStatus").innerText = "";
+				}
+
+				ws.onclose = function() {
+					FrameDisplayContext.clearRect(0, 0, FrameDisplayCanvas.width, FrameDisplayCanvas.height);
+
+					document.getElementById("ConnectionStatus").innerText = "Disconnected";
+				}
+			}
+
+			function closeSocket() {
+				if (ws) {
+					ws.close();
+				}
+			}
+
+			function drawFrame(rawDataFrame) {
+				var frame = new Image();
+
+				frame.onload = function() {
+					FrameDisplayCanvas.width = window.innerWidth;
+					FrameDisplayCanvas.height = window.innerHeight;
+
+					// Scale frame to ratio of viewport size if larger
+					if (window.innerWidth > frame.width) {
+						var ratio = FrameDisplayCanvas.width / frame.width;
+						
+						frame.width *= ratio;
+						frame.height *= ratio;
+					}
+
+					if (window.innerHeight > frame.height) {
+						var ratio = FrameDisplayCanvas.height / frame.height;
+
+						frame.width *= ratio;
+						frame.height *= ratio;
+					}
+
+					FrameDisplayContext.drawImage(frame,
+						// Center frame in canvas for optimal portrait mode
+						FrameDisplayCanvas.width / 2 - frame.width / 2, 
+						FrameDisplayCanvas.height / 2 - frame.height / 2,
+						frame.width,
+						frame.height
+					);
+				}
+
+				var dataFrame = [];
+				dataFrame.push(rawDataFrame);
+				// Create data uri from binary blob
+				frame.src = URL.createObjectURL(new Blob(dataFrame, {type: "image/jpeg"}));
+			}
+		</script>
+	</body>
+</html>

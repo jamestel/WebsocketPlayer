@@ -1,0 +1,4 @@
+sceneSetups:
+- path: Assets/WebsocketPlayer/Example Scene/Example.unity
+  isLoaded: 1
+  isActive: 1
